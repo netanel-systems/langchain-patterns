@@ -1,10 +1,19 @@
 # Python Patterns for LangChain
 
-Klement's reference guide — built pattern by pattern, example by example.
+Klement's reference guide — code + explanation, built together pattern by pattern.
 
 ---
 
 ## Pattern 1 — Classes + OOP
+
+A class is a **blueprint**. An object is the **thing built from that blueprint**.
+
+Every house on a street was built from the same blueprint — but each house is
+its own building, with its own address, its own people inside.
+
+In Python: one class, many objects. Each object holds its own data.
+
+---
 
 ### Level 1 — Basic class
 
@@ -20,6 +29,27 @@ class Dog:
 dog = Dog("Rex", "Labrador")
 dog.greet()
 ```
+
+**Output:**
+```
+Hi, I am Rex and I am a Labrador!
+```
+
+**Line by line:**
+
+- `class Dog:` — defines the blueprint named Dog
+- `def __init__(self, name, breed):` — runs automatically the moment you create a Dog.
+  Think of it as the "setup" step. `self` means "this specific dog I am creating right now."
+- `self.name = name` — stores the name inside this dog object
+- `self.breed = breed` — stores the breed inside this dog object
+- `def greet(self):` — a method (action) this dog can do
+- `dog = Dog("Rex", "Labrador")` — creates one dog: name=Rex, breed=Labrador
+- `dog.greet()` — calls the action on that dog
+
+**`self`** = "me, this specific object." Every method gets `self` as the first
+parameter so it can access its own data.
+
+---
 
 ### Level 2 — Methods with return values
 
@@ -39,6 +69,21 @@ r = Rectangle(5, 3)
 print(r.area())       # 15
 print(r.perimeter())  # 16
 ```
+
+**Output:**
+```
+15
+16
+```
+
+**What changed from Level 1:** Methods now `return` a value instead of just
+printing. The method calculates something and gives it back to you. You can
+store it, print it, or use it in another calculation.
+
+- `r.area()` → returns 15 (5 × 3)
+- `r.perimeter()` → returns 16 (2 × (5 + 3))
+
+---
 
 ### Level 3 — Two independent objects (same class, own state)
 
@@ -64,7 +109,24 @@ print(f"Klement: ${account1.get_balance()}")  # 500
 print(f"Nathan:  ${account2.get_balance()}")  # 100
 ```
 
+**Output:**
+```
+Klement: $500
+Nathan:  $100
+```
+
+**Key lesson:** `account1` and `account2` are two separate objects. They were
+both built from the same `BankAccount` class — but they each hold their own
+`balance`. Depositing into `account1` does not touch `account2`.
+
+Same blueprint. Independent state. They do not share memory.
+
+---
+
 ### Level 4 — Inheritance
+
+**Inheritance** = a child class gets everything from a parent class.
+The child can also **override** (redefine) any method from the parent.
 
 ```python
 class Animal:
@@ -89,11 +151,54 @@ dog.speak()  # Rex says: Woof!
 cat.speak()  # Luna says: Meow!
 ```
 
+**Output:**
+```
+Rex says: Woof!
+Luna says: Meow!
+```
+
+**Line by line:**
+
+- `class Dog(Animal):` — Dog inherits from Animal. The `(Animal)` means "get
+  everything Animal has."
+- Dog gets `__init__` for free from Animal — no need to rewrite it
+- Dog **overrides** `speak()` with its own version
+- When you call `dog.speak()`, Python looks at Dog first — finds the override —
+  uses that. Never touches Animal's speak.
+
+**Overriding** = child redefines a method the parent already has.
+
 ---
 
 ## Pattern 2 — Type Hints
 
-### Basic types
+A type hint is a **label** you add to a function to say what type of value goes
+in and what comes out.
+
+```python
+# Without type hints
+def greet(name):
+    return "Hello, " + name
+
+# With type hints
+def greet(name: str) -> str:
+    return "Hello, " + name
+```
+
+The code runs exactly the same. The labels don't do anything at runtime.
+They are information — for you, for your IDE, and for LangChain.
+
+**Three parts:**
+
+| Syntax | Meaning |
+|--------|---------|
+| `a: int` | parameter `a` should be an integer |
+| `-> int` | this function returns an integer |
+| `-> None` | this function returns nothing |
+
+---
+
+### Basic types — int, str, bool
 
 ```python
 def add(a: int, b: int) -> int:
@@ -104,7 +209,21 @@ def greet(name: str) -> str:
 
 def is_adult(age: int) -> bool:
     return age >= 18
+
+print(add(3, 4))        # 7
+print(greet("Klement")) # Hello, Klement!
+print(is_adult(25))     # True
+print(is_adult(15))     # False
 ```
+
+**`bool`** is the type for `True` or `False`. When you write `-> bool`, the
+function will always give back yes or no.
+
+**Are type hints enforced?** No. Python does not crash if you pass the wrong
+type. They are labels only. If you pass a string to an `int` parameter, Python
+just runs.
+
+---
 
 ### list and dict
 
@@ -116,24 +235,54 @@ def get_grade(scores: dict[str, int]) -> str:
     average = sum(scores.values()) / len(scores)
     if average >= 90:
         return "A"
-    elif average >= 75:
-        return "B"
-    return "C"
+    return "B"
+
+print(total([90, 85, 92]))                              # 267
+print(get_grade({"Math": 95, "English": 88}))           # A
 ```
 
+- `list[int]` — a list where every item is a whole number
+- `dict[str, int]` — a dictionary where keys are strings and values are integers
+
+---
+
 ### Optional — value or nothing
+
+**Problem:** Sometimes a parameter is required. Sometimes it is not.
+`Optional[str]` means: "this slot can hold text, or it can be empty (None)."
+
+Think of it like a sticky note on a package. Sometimes there is a note.
+Sometimes the slot is blank. Either way the package is valid.
 
 ```python
 from typing import Optional
 
 def book_cab(pickup: str, destination: str, note: Optional[str] = None) -> str:
+    print(f"note is: {note}")
     if note:
         return f"Cab booked: {pickup} → {destination}. Note: {note}"
     return f"Cab booked: {pickup} → {destination}"
 
-print(book_cab("Nacharam", "Airport"))               # no note
-print(book_cab("Nacharam", "Airport", "Call mom"))   # with note
+print(book_cab("Nacharam", "Airport"))
+print(book_cab("Nacharam", "Airport", "Call mom when arriving"))
 ```
+
+**Output:**
+```
+note is: None
+Cab booked: Nacharam → Airport
+note is: Call mom when arriving
+Cab booked: Nacharam → Airport. Note: Call mom when arriving
+```
+
+- First call: no note passed → `note` is `None` → if skips → simple output
+- Second call: note passed → if runs → note appears
+
+`None` in Python = nothing. Empty. Blank.
+`= None` after the type hint sets the default — if you do not pass it, it
+defaults to nothing.
+
+---
 
 ### Union — one type OR another
 
@@ -141,11 +290,33 @@ print(book_cab("Nacharam", "Airport", "Call mom"))   # with note
 from typing import Union
 
 def display(value: Union[int, str]) -> str:
+    print(f"value is: {value}")
     return f"Received: {value}"
 
-print(display(42))       # int
-print(display("hello"))  # str
+print(display(42))
+print(display("hello"))
 ```
+
+**Output:**
+```
+value is: 42
+Received: 42
+value is: hello
+Received: hello
+```
+
+`Union[int, str]` = "this can be a whole number OR text — either is fine."
+
+**Optional vs Union:**
+
+| | What it allows |
+|---|---|
+| `Optional[str]` | string **or None** |
+| `Union[int, str]` | int **or** string |
+
+`Optional[str]` is actually a shortcut for `Union[str, None]`. Same thing.
+
+---
 
 ### Literal — must be one of these exact values
 
@@ -153,19 +324,84 @@ print(display("hello"))  # str
 from typing import Literal
 
 def set_mode(mode: Literal["read", "write", "admin"]) -> str:
+    print(f"mode is: {mode}")
     return f"Mode set to: {mode}"
 
-print(set_mode("read"))   # valid
-print(set_mode("admin"))  # valid
-# set_mode("delete")      # rejected by Pydantic
+print(set_mode("read"))
+print(set_mode("admin"))
+# set_mode("delete") → rejected by Pydantic
 ```
+
+**Output:**
+```
+mode is: read
+Mode set to: read
+mode is: admin
+Mode set to: admin
+```
+
+`Literal["read", "write", "admin"]` = "must be exactly one of these three
+strings — nothing else allowed."
+
+If you pass `"delete"`, LangChain/Pydantic will reject it immediately. The
+agent gets the error, corrects itself, and tries again with a valid value.
+This is how you restrict an agent to only valid choices.
+
+---
+
+### Why LangChain cares about type hints
+
+When you decorate a function with `@tool` (Pattern 5), LangChain reads the
+type hints and builds the schema automatically:
+
+```
+name → what to pass in
+return type → what to expect back
+```
+
+The agent (Claude/GPT) reads that schema, fills in the values, Pydantic
+validates them, and your function runs. Without type hints, LangChain cannot
+build the schema. The tool breaks.
+
+**All type hints — quick reference:**
+
+| Type | Meaning |
+|------|---------|
+| `int` | whole number — `42` |
+| `str` | text — `"hello"` |
+| `bool` | true or false |
+| `float` | decimal — `3.14` |
+| `list[int]` | list of integers |
+| `dict[str, int]` | dict with string keys, int values |
+| `Optional[str]` | string or None |
+| `Union[int, str]` | int or string |
+| `Literal["a", "b"]` | must be exactly "a" or "b" |
 
 ---
 
 ## Pattern 3 — TypedDict
 
-Used for **agent state** in LangGraph — the memory that flows between nodes.
+A regular dict has no structure. Any key, any type, no rules:
+
+```python
+person = {"name": "Klement", "age": 25}  # Python has no idea what's inside
+```
+
+**TypedDict** gives the dict a declared shape. You say exactly what keys exist
+and what type each key holds. Python (and LangChain) now knows the structure.
+
+```python
+from typing import TypedDict
+
+class Person(TypedDict):
+    name: str
+    age: int
+```
+
+**Used for:** Agent state in LangGraph — the memory that flows between nodes.
 You write it. You control it. No enforcement needed.
+
+---
 
 ### Basic structure
 
@@ -183,7 +419,16 @@ klement = {"name": "Klement", "age": 25}
 print(greet(klement))
 ```
 
-### Cab booking state
+**Output:**
+```
+Hello Klement, you are 25 years old.
+```
+
+Access TypedDict values with `["key"]` — same as a regular dict.
+
+---
+
+### Real scenario — cab booking state
 
 ```python
 from typing import TypedDict
@@ -196,10 +441,32 @@ class CabBooking(TypedDict):
 
 def summarize(booking: CabBooking) -> str:
     status = "Confirmed" if booking["confirmed"] else "Pending"
-    return f"{booking['pickup']} → {booking['destination']} | {booking['seats']} seats | {status}"
+    return (
+        f"Pickup: {booking['pickup']}\n"
+        f"Destination: {booking['destination']}\n"
+        f"Seats: {booking['seats']}\n"
+        f"Status: {status}"
+    )
+
+order = {"pickup": "Nacharam", "destination": "Airport", "seats": 2, "confirmed": True}
+print(summarize(order))
 ```
 
+**Output:**
+```
+Pickup: Nacharam
+Destination: Airport
+Seats: 2
+Status: Confirmed
+```
+
+The function knows exactly what keys to expect. No guessing. No wrong key names.
+
+---
+
 ### LangGraph node — state in, state out
+
+This is exactly how every LangGraph node works.
 
 ```python
 from typing import TypedDict
@@ -210,19 +477,60 @@ class AgentState(TypedDict):
     reply: str
 
 def process(state: AgentState) -> AgentState:
+    print(f"Received: {state['message']}")
     state["reply"] = f"Got it: {state['message']}"
     state["done"] = True
     return state
+
+state = {"message": "Book a cab for Klement", "done": False, "reply": ""}
+
+print("--- Before ---")
+print(state)
+
+result = process(state)
+
+print("--- After ---")
+print(result)
 ```
+
+**Output:**
+```
+--- Before ---
+{'message': 'Book a cab for Klement', 'done': False, 'reply': ''}
+Received: Book a cab for Klement
+--- After ---
+{'message': 'Book a cab for Klement', 'done': True, 'reply': 'Got it: Book a cab for Klement'}
+```
+
+The function received the state, updated two fields, returned it. Before:
+`done=False, reply=""`. After: `done=True, reply="Got it: ..."`.
+
+**In every LangGraph project, every node has this exact shape:**
+
+```python
+def my_node(state: AgentState) -> AgentState:
+    # read from state
+    # update state
+    # return state
+```
+
+TypedDict is the state that flows through the entire graph.
 
 ---
 
 ## Pattern 4 — Pydantic BaseModel
 
-Used for **tool inputs** in LangChain — the LLM fills these.
-Pydantic validates every field. Wrong type = immediate error.
+TypedDict is just labels — no enforcement. If you pass wrong data, nothing
+happens. Pydantic actually **checks** the data and **crashes immediately** if
+something is wrong.
 
-Access with dot `.` — not `["key"]` like a dict.
+**Used for:** Tool inputs in LangChain — the LLM fills these in. The LLM might
+pass the wrong type. Pydantic catches it, returns the error, the LLM corrects
+itself and tries again.
+
+**Access:** dot `.` — not `["key"]` like a dict.
+
+---
 
 ### Basic BaseModel
 
@@ -235,9 +543,21 @@ class CabBooking(BaseModel):
     seats: int
 
 booking = CabBooking(pickup="Nacharam", destination="Airport", seats=2)
-print(booking.pickup)
-print(booking.seats)
+print(booking.pickup)       # Nacharam
+print(booking.destination)  # Airport
+print(booking.seats)        # 2
 ```
+
+Pydantic checks every field when you create the object. Pass the wrong type:
+
+```python
+booking = CabBooking(pickup="Nacharam", destination="Airport", seats="two")
+# ValidationError: seats — Input should be a valid integer
+```
+
+`seats="two"` → Pydantic crashed immediately. Clear error, exact field.
+
+---
 
 ### Optional field
 
@@ -250,9 +570,20 @@ class Contact(BaseModel):
     phone: str
     note: Optional[str] = None
 
-c1 = Contact(name="Klement", phone="+91-9999")            # note = None
-c2 = Contact(name="Mom", phone="+91-8888", note="Telugu")  # note filled
+c1 = Contact(name="Klement", phone="+91-9999")              # note = None
+c2 = Contact(name="Mom", phone="+91-8888", note="Telugu")   # note filled
+
+print(c1.name, c1.phone, c1.note)   # Klement +91-9999 None
+print(c2.name, c2.phone, c2.note)   # Mom +91-8888 Telugu
 ```
+
+- `name` and `phone` are required — must always be passed
+- `note` is optional — can skip it, defaults to `None`
+
+This is Pattern 2 (Optional) + Pattern 4 (Pydantic) working together. The type
+hints you write → Pydantic reads and enforces them.
+
+---
 
 ### Literal inside BaseModel
 
@@ -265,10 +596,19 @@ class ReminderInput(BaseModel):
     message: str
     type: Literal["call", "cab", "food"]
 
-# type="email" → Pydantic crashes: Input should be 'call', 'cab' or 'food'
+r = ReminderInput(person="Mom", message="Doctor at 3pm", type="call")
+print(r.person, r.message, r.type)  # Mom Doctor at 3pm call
+
+# r2 = ReminderInput(person="Mom", message="Doctor at 3pm", type="email")
+# → ValidationError: type — Input should be 'call', 'cab' or 'food'
 ```
 
-### Nested models
+`Literal` in Pattern 2 was just a label. Inside Pydantic, it becomes
+enforced. Pass `"email"` → crash. The agent sees the error, corrects itself.
+
+---
+
+### Nested models — one model inside another
 
 ```python
 from pydantic import BaseModel
@@ -282,12 +622,26 @@ class Person(BaseModel):
     age: int
     address: Address
 
-klement = Person(name="Klement", age=25, address=Address(city="New York", country="USA"))
-print(klement.address.city)     # New York
-print(klement.address.country)  # USA
+klement = Person(
+    name="Klement",
+    age=25,
+    address=Address(city="New York", country="USA")
+)
+
+print(klement.name)            # Klement
+print(klement.address.city)    # New York
+print(klement.address.country) # USA
 ```
 
+One model holds another. Access goes one level deeper with a dot.
+Pydantic validates both levels.
+
+---
+
 ### model_validator — custom rule across fields
+
+Sometimes you need a rule that Python cannot express with just a type.
+You write it yourself:
 
 ```python
 from pydantic import BaseModel, model_validator
@@ -301,9 +655,25 @@ class BookingInput(BaseModel):
         if self.seats > self.max_seats:
             raise ValueError(f"seats {self.seats} cannot exceed max_seats {self.max_seats}")
         return self
+
+b1 = BookingInput(seats=2, max_seats=4)
+print(f"Booked {b1.seats} of {b1.max_seats} seats — OK")
+
+# b2 = BookingInput(seats=6, max_seats=4)
+# → ValueError: seats 6 cannot exceed max_seats 4
 ```
 
-### Field with number constraints
+- `@model_validator(mode="after")` — runs after all fields are loaded
+- `self.seats`, `self.max_seats` — access the fields using `self`
+- `raise ValueError(...)` — your custom error message
+- `return self` — if everything is fine, return the object
+
+`Literal` catches wrong values. `model_validator` catches wrong logic between
+two fields.
+
+---
+
+### Field — number boundaries
 
 ```python
 from pydantic import BaseModel, Field
@@ -312,9 +682,27 @@ class OrderInput(BaseModel):
     item: str
     quantity: int = Field(ge=1, le=10)
     discount: float = Field(ge=0.0, le=100.0)
+
+o1 = OrderInput(item="Rice", quantity=3, discount=10.0)
+print(f"{o1.item} x{o1.quantity} — {o1.discount}% off")  # Rice x3 — 10.0% off
+
+# OrderInput(item="Rice", quantity=0, discount=10.0)
+# → ValidationError: quantity — Input should be greater than or equal to 1
 ```
 
+| | Meaning |
+|---|---|
+| `ge=1` | greater than or equal to 1 |
+| `le=10` | less than or equal to 10 |
+
+Pass `quantity=0` → below minimum → instant error.
+Pass `quantity=11` → above maximum → instant error.
+
+---
+
 ### All combined — real Aria tool input
+
+This is what a real LangChain tool input looks like. Every pattern together:
 
 ```python
 from pydantic import BaseModel, Field
@@ -328,6 +716,17 @@ class BookCabInput(BaseModel):
     note: Optional[str] = None
 ```
 
+| Field | Pattern |
+|-------|---------|
+| `pickup: str` | Pattern 2 — type hint |
+| `seats: int = Field(ge=1, le=6)` | Pattern 4 — Field constraints |
+| `language: Literal["english", "telugu"]` | Pattern 2 — Literal |
+| `note: Optional[str] = None` | Pattern 2 — Optional |
+
+- Minimal call: `BookCabInput(pickup="Nacharam", destination="Airport", seats=2)`
+  → language defaults to "english", note defaults to None
+- Full call: all fields filled explicitly
+
 ---
 
 ## TypedDict vs Pydantic — Quick Reference
@@ -335,11 +734,29 @@ class BookCabInput(BaseModel):
 | | TypedDict | Pydantic BaseModel |
 |---|---|---|
 | Syntax | `class X(TypedDict)` | `class X(BaseModel)` |
-| Enforces types? | No | Yes |
+| Enforces types? | No | Yes — crashes if wrong |
 | Access | `state["key"]` | `obj.key` |
-| Used for | LangGraph state (you write it) | LangChain tool inputs (LLM writes it) |
+| Used for | LangGraph state (you write it) | LangChain tool inputs (LLM fills it) |
 
-**Rule:** LLM writes it → Pydantic. You write it → TypedDict.
+**The rule:**
+- LLM writes it → use Pydantic (it needs validation)
+- You write it → use TypedDict (you control it, no enforcement needed)
+
+In every LangGraph project you will see both in the same file:
+
+```python
+class AgentState(TypedDict):    # state between nodes — you control it
+    messages: list[str]
+    next_step: str
+    done: bool
+
+class BookCabInput(BaseModel):  # tool input — LLM fills this — needs checking
+    pickup: str
+    destination: str
+    seats: int = Field(ge=1, le=6)
+```
+
+Both needed. Different jobs.
 
 ---
 
