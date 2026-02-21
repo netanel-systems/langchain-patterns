@@ -896,3 +896,173 @@ Your function runs with correct inputs.
 This is why Pattern 2 (type hints) and Pattern 4 (Pydantic) came first.
 `@tool` is the step that connects them to the agent.
 
+
+---
+
+### `@tool` Example 2 — with Pydantic input schema (production style)
+
+Instead of just type hints on the function, you define a full Pydantic model
+as the input schema. LangChain uses the model for full validation.
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel, Field
+from typing import Literal, Optional
+
+class SendReminderInput(BaseModel):
+    person: str
+    message: str
+    type: Literal["call", "cab", "food"]
+    urgent: bool = False
+    note: Optional[str] = None
+
+@tool("send_reminder", args_schema=SendReminderInput)
+def send_reminder(person: str, message: str, type: str, urgent: bool, note: Optional[str]) -> str:
+    """Send a reminder to a person via call, cab booking, or food order."""
+    prefix = "[URGENT] " if urgent else ""
+    result = f"{prefix}Reminder sent to {person}: {message} via {type}"
+    if note:
+        result += f" ({note})"
+    return result
+
+result = send_reminder.invoke({
+    "person": "Mom",
+    "message": "Doctor appointment at 3pm",
+    "type": "call",
+    "urgent": True,
+    "note": "Speak Telugu"
+})
+print(result)
+```
+
+**Output:**
+```
+[URGENT] Reminder sent to Mom: Doctor appointment at 3pm via call (Speak Telugu)
+```
+
+Two new things in `@tool("send_reminder", args_schema=SendReminderInput)`:
+- `"send_reminder"` — custom name for the tool
+- `args_schema=SendReminderInput` — Pydantic model plugged in as schema
+
+**What the schema produces:**
+- `type` → `enum: ['call', 'cab', 'food']` — Literal became a strict enum
+- `urgent` → `default: False` — bool with default
+- `note` → `anyOf: [string, null]` — Optional[str]
+
+The agent sees only those three choices for `type`. It cannot pass `"email"`.
+
+**Example 1 vs Example 2:**
+
+| | Example 1 | Example 2 |
+|---|---|---|
+| Schema from | type hints on function | Pydantic model |
+| Validation | basic | full (Field, Literal, Optional) |
+| Custom tool name | no | yes |
+| Used when | simple tools | production tools |
+
+---
+
+### `@tool` Example 3 — multiple tools as a list
+
+```python
+from langchain.tools import tool
+
+@tool
+def get_weather(city: str) -> str:
+    """Get the current weather for a city."""
+    return f"Weather in {city}: Sunny, 28°C"
+
+@tool
+def book_cab(pickup: str, destination: str) -> str:
+    """Book a cab from pickup to destination."""
+    return f"Cab booked: {pickup} → {destination}"
+
+@tool
+def send_message(to: str, body: str) -> str:
+    """Send a text message to a contact."""
+    return f"Message sent to {to}: {body}"
+
+tools = [get_weather, book_cab, send_message]
+
+for t in tools:
+    print(f"{t.name}: {t.description.strip()}")
+
+print(get_weather.invoke({"city": "Hyderabad"}))
+print(book_cab.invoke({"pickup": "Nacharam", "destination": "Airport"}))
+print(send_message.invoke({"to": "Mom", "body": "Doctor at 3pm"}))
+```
+
+**Output:**
+```
+get_weather: Get the current weather for a city.
+book_cab: Book a cab from pickup to destination.
+send_message: Send a text message to a contact.
+
+Weather in Hyderabad: Sunny, 28°C
+Cab booked: Nacharam → Airport
+Message sent to Mom: Doctor at 3pm
+```
+
+`tools = [get_weather, book_cab, send_message]` — this exact list is passed to
+the agent:
+
+```python
+agent = create_agent(model, tools=tools)
+```
+
+The agent reads all three descriptions and decides which tool to call:
+- "What is the weather in Hyderabad" → agent picks `get_weather`
+- "Book me a cab" → agent picks `book_cab`
+- "Text mom" → agent picks `send_message`
+
+**The docstring is everything.** Clear docstring = agent picks the right tool.
+Vague docstring = agent guesses wrong.
+
+---
+
+### `@tool` Example 4 — tool using real data inside
+
+```python
+from langchain.tools import tool
+
+contacts = {
+    "Mom": "+91-8888",
+    "Klement": "+91-9999",
+    "Aria": "+91-7777"
+}
+
+@tool
+def lookup_contact(name: str) -> str:
+    """Look up a contact's phone number by name."""
+    phone = contacts.get(name)
+    if phone:
+        return f"{name}: {phone}"
+    return f"Contact '{name}' not found."
+
+print(lookup_contact.invoke({"name": "Mom"}))       # Mom: +91-8888
+print(lookup_contact.invoke({"name": "Aria"}))      # Aria: +91-7777
+print(lookup_contact.invoke({"name": "Unknown"}))   # Contact 'Unknown' not found.
+```
+
+**Output:**
+```
+Mom: +91-8888
+Aria: +91-7777
+Contact 'Unknown' not found.
+```
+
+The tool looks up from a real dict inside the function. Found → returns the
+number. Not found → returns a clear message. This is exactly how Aria's contact
+lookup tool works.
+
+---
+
+### Pattern 5 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic `@tool` — type hints become schema automatically |
+| 2 | `args_schema=PydanticModel` — full Pydantic validation |
+| 3 | Multiple tools as a list — how you register with an agent |
+| 4 | Tool using real data inside the function |
+
