@@ -761,3 +761,138 @@ Both needed. Different jobs.
 ---
 
 *Patterns 5–12 coming soon.*
+
+---
+
+## Pattern 5 — Decorators + `@tool`
+
+A decorator is a line that starts with `@` placed directly above a function.
+It wraps that function and adds behavior — without changing the function itself.
+
+### What a decorator does
+
+```python
+def shout(func):
+    def wrapper(*args, **kwargs):
+        print("--- calling function ---")
+        result = func(*args, **kwargs)
+        print("--- done ---")
+        return result
+    return wrapper
+
+@shout
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+message = greet("Klement")
+print(message)
+```
+
+**Output:**
+```
+--- calling function ---
+--- done ---
+Hello, Klement!
+```
+
+`@shout` wraps `greet`. Every time `greet` runs, `shout` adds the before/after
+lines automatically. You did not change `greet` at all.
+
+**The pattern:**
+```
+@decorator
+def my_function():
+    ...
+```
+= "before running my_function, pass it through decorator first."
+
+---
+
+### `@tool` — the LangChain decorator
+
+`@tool` wraps your function and registers it as a LangChain tool. LangChain
+reads three things automatically:
+
+1. **Function name** → tool name
+2. **Type hints** → schema (what the agent must fill in)
+3. **Docstring** → description (what the agent reads to decide when to use it)
+
+```python
+from langchain.tools import tool
+
+@tool
+def book_cab(pickup: str, destination: str, seats: int = 1) -> str:
+    """Book a cab from pickup to destination.
+
+    Args:
+        pickup: The pickup location
+        destination: The drop-off location
+        seats: Number of seats needed
+    """
+    return f"Cab booked: {pickup} → {destination} for {seats} seat(s)"
+
+# Call it
+result = book_cab.invoke({"pickup": "Nacharam", "destination": "Airport", "seats": 2})
+print(result)
+
+# See what LangChain built automatically
+print(book_cab.name)
+print(book_cab.description)
+print(book_cab.args)
+```
+
+**Output:**
+```
+Cab booked: Nacharam → Airport for 2 seat(s)
+
+name:        book_cab
+description: Book a cab from pickup to destination.
+args:        pickup → string
+             destination → string
+             seats → integer (default 1)
+```
+
+**Line by line:**
+
+- `@tool` — LangChain reads the function name, type hints, and docstring
+- The **docstring** becomes the tool description — what the agent reads to decide
+  when to call this tool
+- The **type hints** become the schema — what fields the agent must fill in
+- LangChain built the entire schema automatically from your code
+
+---
+
+### How to call a tool
+
+```python
+# Always use .invoke() with a dict — not book_cab(...)
+book_cab.invoke({"pickup": "Nacharam", "destination": "Airport", "seats": 2})
+```
+
+---
+
+### The full flow — type hints + docstring + `@tool`
+
+```
+You write:
+  @tool
+  def book_cab(pickup: str, destination: str, seats: int) -> str:
+      """Book a cab..."""
+
+LangChain reads:
+  name        = "book_cab"
+  description = "Book a cab..."
+  schema      = pickup (string), destination (string), seats (integer)
+
+Agent reads the schema and fills in:
+  pickup      = "Nacharam"
+  destination = "Airport"
+  seats       = 2
+
+Pydantic validates the values.
+Your function runs with correct inputs.
+```
+
+This is why Pattern 2 (type hints) and Pattern 4 (Pydantic) came first.
+`@tool` is the step that connects them to the agent.
+
