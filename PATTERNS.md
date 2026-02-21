@@ -1173,3 +1173,65 @@ Daily summary for Aria:
 - `Field(ge=0)` — task count cannot be negative
 - Multi-line return — tools can return formatted text, not just one line
 
+
+---
+
+## Pattern 6 — async/await
+
+### The problem
+
+Normal functions run one at a time. If a function waits (API call, database,
+file read), Python sits idle doing nothing.
+
+```
+call API → wait 2s → get result → call API again → wait 2s → get result
+Total: 4 seconds wasted
+```
+
+`async/await` lets Python do other work while waiting:
+
+```
+call API → while waiting, call another API → both results arrive together
+Total: 2 seconds
+```
+
+### Two keywords
+
+| Keyword | Meaning |
+|---------|---------|
+| `async def` | "this function can pause and wait" |
+| `await` | "pause here until this is ready, let others run" |
+
+### Example 1 — basic async function
+
+```python
+import asyncio
+
+async def greet(name: str) -> str:
+    await asyncio.sleep(1)   # simulates waiting (like an API call)
+    return f"Hello, {name}!"
+
+async def main():
+    result = await greet("Klement")
+    print(result)
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+Hello, Klement!
+```
+
+**Line by line:**
+
+- `async def greet(...)` — same as a normal function, just `async` in front.
+  Means "this function can pause."
+- `await asyncio.sleep(1)` — pause here for 1 second (simulating an API call).
+  Let other things run while waiting.
+- `async def main():` — to use `await`, you must be inside another `async def`
+- `result = await greet("Klement")` — to call an async function, you must `await` it
+- `asyncio.run(main())` — the entry point. Starts the async engine and runs `main()`
+
+*More examples coming in next session.*
+
