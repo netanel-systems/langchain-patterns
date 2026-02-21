@@ -4,6 +4,25 @@ Klement's reference guide — code + explanation, built together pattern by patt
 
 ---
 
+## Roadmap — All 12 Patterns
+
+| # | Pattern | Status |
+|---|---------|--------|
+| 1 | Classes + OOP | Complete |
+| 2 | Type Hints (int, str, bool, list, dict, Optional, Union, Literal) | Complete |
+| 3 | TypedDict — agent state | Complete |
+| 4 | Pydantic BaseModel — tool input validation | Complete |
+| 5 | Decorators + `@tool` | Complete |
+| 6 | async/await — parallel execution | In Progress |
+| 7 | try/except — error handling | Remaining |
+| 8 | Dataclasses | Remaining |
+| 9 | `**kwargs` — flexible arguments | Remaining |
+| 10 | List comprehensions | Remaining |
+| 11 | Annotated types | Remaining |
+| 12 | Putting it all together — full LangChain agent | Remaining |
+
+---
+
 ## Pattern 1 — Classes + OOP
 
 A class is a **blueprint**. An object is the **thing built from that blueprint**.
