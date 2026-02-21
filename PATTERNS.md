@@ -1066,3 +1066,110 @@ lookup tool works.
 | 3 | Multiple tools as a list — how you register with an agent |
 | 4 | Tool using real data inside the function |
 
+
+---
+
+### `@tool` Example 5 — error handling inside a tool
+
+Tools should never crash the agent. Always return a string — even for errors.
+The agent reads the error string and knows to try different inputs.
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel
+
+class DivideInput(BaseModel):
+    numerator: float
+    denominator: float
+
+@tool("divide", args_schema=DivideInput)
+def divide(numerator: float, denominator: float) -> str:
+    """Divide two numbers. Returns an error if denominator is zero."""
+    if denominator == 0:
+        return "Error: cannot divide by zero."
+    result = numerator / denominator
+    return f"{numerator} ÷ {denominator} = {result}"
+
+print(divide.invoke({"numerator": 10, "denominator": 2}))   # 10.0 ÷ 2.0 = 5.0
+print(divide.invoke({"numerator": 5, "denominator": 0}))    # Error: cannot divide by zero.
+```
+
+---
+
+### `@tool` Example 6 — real Aria tool: remind Mom
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel
+from typing import Literal
+
+class RemindMomInput(BaseModel):
+    message: str
+    language: Literal["english", "telugu"]
+    urgent: bool = False
+
+@tool("remind_mom", args_schema=RemindMomInput)
+def remind_mom(message: str, language: str, urgent: bool) -> str:
+    """Send a reminder to Mom in English or Telugu. Use urgent=True for time-sensitive messages."""
+    prefix = "[URGENT] " if urgent else ""
+    lang_note = "Telugu call" if language == "telugu" else "English message"
+    return f"{prefix}{lang_note} to Mom: {message}"
+
+print(remind_mom.invoke({"message": "Doctor at 3pm", "language": "telugu", "urgent": True}))
+print(remind_mom.invoke({"message": "Lunch is ready", "language": "english"}))
+print(remind_mom.invoke({"message": "Take medicine", "language": "telugu"}))
+```
+
+**Output:**
+```
+[URGENT] Telugu call to Mom: Doctor at 3pm
+English message to Mom: Lunch is ready
+Telugu call to Mom: Take medicine
+```
+
+Third call — no `urgent` passed → defaults to `False` → no `[URGENT]` prefix.
+
+---
+
+### `@tool` Example 7 — tool that builds a formatted summary
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel, Field
+from typing import Literal
+
+class DailySummaryInput(BaseModel):
+    person: Literal["Klement", "Mom", "Aria"]
+    tasks_done: int = Field(ge=0)
+    pending: int = Field(ge=0)
+
+@tool("daily_summary", args_schema=DailySummaryInput)
+def daily_summary(person: str, tasks_done: int, pending: int) -> str:
+    """Generate a daily summary report for a person."""
+    total = tasks_done + pending
+    pct = round((tasks_done / total) * 100) if total > 0 else 0
+    return (
+        f"Daily summary for {person}:\n"
+        f"  Done:    {tasks_done}/{total} tasks ({pct}%)\n"
+        f"  Pending: {pending} tasks"
+    )
+
+print(daily_summary.invoke({"person": "Klement", "tasks_done": 7, "pending": 3}))
+print(daily_summary.invoke({"person": "Aria", "tasks_done": 12, "pending": 1}))
+```
+
+**Output:**
+```
+Daily summary for Klement:
+  Done:    7/10 tasks (70%)
+  Pending: 3 tasks
+
+Daily summary for Aria:
+  Done:    12/13 tasks (92%)
+  Pending: 1 tasks
+```
+
+- `Literal["Klement", "Mom", "Aria"]` — only these three names allowed
+- `Field(ge=0)` — task count cannot be negative
+- Multi-line return — tools can return formatted text, not just one line
+
