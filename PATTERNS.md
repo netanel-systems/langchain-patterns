@@ -14,8 +14,8 @@ Klement's reference guide — code + explanation, built together pattern by patt
 | 4 | Pydantic BaseModel — tool input validation | Complete |
 | 5 | Decorators + `@tool` | Complete |
 | 6 | async/await — parallel execution | Complete |
-| 7 | try/except — error handling | Remaining |
-| 8 | Dataclasses | Remaining |
+| 7 | try/except — error handling | Complete |
+| 8 | Dataclasses | In Progress |
 | 9 | `**kwargs` — flexible arguments | Remaining |
 | 10 | List comprehensions | Remaining |
 | 11 | Annotated types | Remaining |
@@ -1539,4 +1539,315 @@ dict. Now it runs inside `asyncio.gather`.
 | 5 | Timeout — wait_for |
 | 6 | Async inside a class |
 | 7 | LangChain ainvoke — the real use case |
+
+---
+
+## Pattern 7 — try/except
+
+### The problem
+
+Without error handling, one bad thing crashes the entire program:
+
+```python
+result = 10 / 0
+print("done")   # never runs
+# ZeroDivisionError: division by zero — program stopped
+```
+
+`try/except` catches the crash and lets you decide what to do instead.
+
+### The shape
+
+```
+try:
+    [code that might fail]
+except SomeError:
+    [what to do if it fails]
+else:
+    [runs only if try succeeded — no error]
+finally:
+    [always runs — error or not]
+```
+
+---
+
+### Example 1 — basic try/except
+
+```python
+def divide(a: float, b: float) -> str:
+    try:
+        result = a / b
+        return f"{a} ÷ {b} = {result}"
+    except ZeroDivisionError:
+        return "Error: cannot divide by zero"
+
+print(divide(10, 2))   # 10.0 ÷ 2.0 = 5.0
+print(divide(5, 0))    # Error: cannot divide by zero
+```
+
+**Output:**
+```
+10.0 ÷ 2.0 = 5.0
+Error: cannot divide by zero
+```
+
+`try` runs the code. If `ZeroDivisionError` happens, Python jumps straight to
+`except`. The program does not crash.
+
+---
+
+### Example 2 — multiple except blocks
+
+```python
+def parse_and_divide(a: str, b: str) -> str:
+    try:
+        num_a = int(a)
+        num_b = int(b)
+        result = num_a / num_b
+        return f"{num_a} ÷ {num_b} = {result}"
+    except ValueError:
+        return "Error: both inputs must be numbers"
+    except ZeroDivisionError:
+        return "Error: cannot divide by zero"
+
+print(parse_and_divide("10", "2"))     # 10 ÷ 2 = 5.0
+print(parse_and_divide("10", "0"))     # Error: cannot divide by zero
+print(parse_and_divide("ten", "2"))    # Error: both inputs must be numbers
+```
+
+**Output:**
+```
+10 ÷ 2 = 5.0
+Error: cannot divide by zero
+Error: both inputs must be numbers
+```
+
+Python checks each `except` in order — top to bottom. First match wins.
+
+---
+
+### Example 3 — else and finally
+
+```python
+def read_file(filename: str) -> None:
+    try:
+        f = open(filename, "r")
+        content = f.read()
+    except FileNotFoundError:
+        print(f"Error: '{filename}' not found")
+    else:
+        print(f"Success! Contents: {content}")
+    finally:
+        print("Done — always runs")
+```
+
+| Block | When it runs |
+|-------|-------------|
+| `try` | always — the code to attempt |
+| `except` | only if try raised that error |
+| `else` | only if try succeeded — no error |
+| `finally` | always — error or not |
+
+`finally` is for cleanup: close a file, close a database connection, log that
+the attempt happened — regardless of what went wrong.
+
+---
+
+### Example 4 — catching the error message with `as e`
+
+```python
+def fetch_data(url: str) -> str:
+    try:
+        if not url.startswith("https"):
+            raise ValueError(f"Invalid URL: {url}")
+        return f"Data from {url}"
+    except ValueError as e:
+        return f"Error caught: {e}"
+
+print(fetch_data("https://api.example.com"))   # Data from https://api.example.com
+print(fetch_data("http://api.example.com"))    # Error caught: Invalid URL: http://...
+print(fetch_data("not-a-url"))                 # Error caught: Invalid URL: not-a-url
+```
+
+`as e` gives the error a name so you can read its message.
+`raise ValueError("message")` creates and throws your own error immediately.
+
+In LangChain tools: `except Exception as e: return f"Tool failed: {e}"`
+
+---
+
+### Example 5 — custom exceptions
+
+```python
+class InvalidCityError(Exception):
+    pass
+
+class APITimeoutError(Exception):
+    pass
+
+def get_weather(city: str) -> str:
+    if not city:
+        raise InvalidCityError("City name cannot be empty")
+    if city == "unknown":
+        raise APITimeoutError("Weather API did not respond")
+    return f"Weather in {city}: Sunny, 28°C"
+
+for city in ["Hyderabad", "", "unknown"]:
+    try:
+        print(get_weather(city))
+    except InvalidCityError as e:
+        print(f"Bad input: {e}")
+    except APITimeoutError as e:
+        print(f"API issue: {e}")
+```
+
+**Output:**
+```
+Weather in Hyderabad: Sunny, 28°C
+Bad input: City name cannot be empty
+API issue: Weather API did not respond
+```
+
+`class InvalidCityError(Exception): pass` — inherits from Exception, that is
+all it needs. Now you have a brand new error type with a meaningful name.
+
+---
+
+### Example 6 — try/except inside a LangChain tool (production pattern)
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel
+from typing import Literal
+
+contacts = {"Mom": "+91-8888", "Klement": "+91-9999"}
+
+class CallContactInput(BaseModel):
+    name: str
+    language: Literal["english", "telugu"]
+
+@tool("call_contact", args_schema=CallContactInput)
+def call_contact(name: str, language: str) -> str:
+    """Call a contact by name in the given language."""
+    try:
+        if name not in contacts:
+            raise ValueError(f"Contact '{name}' not found")
+        phone = contacts[name]
+        return f"Calling {name} ({phone}) in {language}"
+    except ValueError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Unexpected error: {e}"
+
+print(call_contact.invoke({"name": "Mom", "language": "telugu"}))
+print(call_contact.invoke({"name": "Dad", "language": "english"}))
+```
+
+**Output:**
+```
+Calling Mom (+91-8888) in telugu
+Error: Contact 'Dad' not found
+```
+
+Always two except blocks in tools: one for expected errors you raised yourself,
+one for anything unexpected. Tools must never crash the agent — always return a
+string.
+
+---
+
+### Pattern 7 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic try/except — catch one error |
+| 2 | Multiple except — different errors, different responses |
+| 3 | else + finally — success path + cleanup |
+| 4 | `as e` + `raise` — read the error, create your own |
+| 5 | Custom exceptions — your own error types |
+| 6 | try/except inside a LangChain tool — production pattern |
+
+---
+
+## Pattern 8 — Dataclasses
+
+### The problem with regular classes
+
+```python
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+```
+
+You write `__init__` manually every time just to store data. Repetitive.
+`@dataclass` generates all of that automatically.
+
+---
+
+### Example 1 — basic dataclass
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+p = Point(x=3, y=7)
+print(p.x)    # 3
+print(p.y)    # 7
+print(p)      # Point(x=3, y=7)
+```
+
+**Output:**
+```
+3
+7
+Point(x=3, y=7)
+```
+
+`@dataclass` gives you for free: `__init__` (no need to write it) and
+`__repr__` (`print(p)` shows `Point(x=3, y=7)` not a memory address).
+
+**Dataclass vs Pydantic vs TypedDict:**
+
+| | TypedDict | Dataclass | Pydantic |
+|---|---|---|---|
+| Validates types? | No | No | Yes |
+| Auto `__init__`? | No | Yes | Yes |
+| Access | `["key"]` | `.field` | `.field` |
+| Used for | LangGraph state | internal data structures | tool inputs |
+
+---
+
+### Example 2 — default values
+
+```python
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class Contact:
+    name: str
+    phone: str
+    language: str = "english"
+    note: Optional[str] = None
+
+c1 = Contact(name="Mom", phone="+91-8888")
+c2 = Contact(name="Klement", phone="+91-9999", language="telugu", note="Call after 6pm")
+
+print(c1)
+print(c2)
+```
+
+**Output:**
+```
+Contact(name='Mom', phone='+91-8888', language='english', note=None)
+Contact(name='Klement', phone='+91-9999', language='telugu', note='Call after 6pm')
+```
+
+Fields with defaults must come after fields without defaults.
+
+*More examples coming in next session.*
 
