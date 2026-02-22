@@ -1849,5 +1849,114 @@ Contact(name='Klement', phone='+91-9999', language='telugu', note='Call after 6p
 
 Fields with defaults must come after fields without defaults.
 
+---
+
+### Example 3 — field() for complex defaults
+
+You cannot use a list or dict as a default directly — Python shares it across
+all instances. `field(default_factory=...)` gives each object its own fresh copy.
+
+```python
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class TaskList:
+    owner: str
+    tasks: List[str] = field(default_factory=list)
+
+t1 = TaskList(owner="Klement")
+t2 = TaskList(owner="Mom")
+
+t1.tasks.append("Buy groceries")
+t1.tasks.append("Call doctor")
+t2.tasks.append("Watch movie")
+
+print(t1)
+print(t2)
+```
+
+**Output:**
+```
+TaskList(owner='Klement', tasks=['Buy groceries', 'Call doctor'])
+TaskList(owner='Mom', tasks=['Watch movie'])
+```
+
+| Default type | How to write it |
+|---|---|
+| `"english"`, `0`, `True` | write directly |
+| `[]`, `{}` | use `field(default_factory=list)` or `field(default_factory=dict)` |
+
+---
+
+### Example 4 — methods inside a dataclass
+
+```python
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class ShoppingList:
+    owner: str
+    items: List[str] = field(default_factory=list)
+
+    def add(self, item: str) -> None:
+        self.items.append(item)
+
+    def remove(self, item: str) -> None:
+        if item in self.items:
+            self.items.remove(item)
+
+    def total(self) -> int:
+        return len(self.items)
+
+    def summary(self) -> str:
+        return f"{self.owner} has {self.total()} items: {self.items}"
+
+cart = ShoppingList(owner="Klement")
+cart.add("Rice")
+cart.add("Milk")
+cart.add("Eggs")
+cart.remove("Milk")
+
+print(cart.summary())
+print(cart)
+```
+
+**Output:**
+```
+Klement has 2 items: ['Rice', 'Eggs']
+ShoppingList(owner='Klement', items=['Rice', 'Eggs'])
+```
+
+`@dataclass` handles the boring part (`__init__`, `__repr__`). You write the
+interesting part — the methods. Everything else is identical to a regular class.
+
+---
+
+### Example 5 — frozen dataclass (immutable)
+
+`frozen=True` makes the object read-only after creation.
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Config:
+    model: str
+    temperature: float
+    max_tokens: int
+
+config = Config(model="gpt-4o-mini", temperature=0.0, max_tokens=1000)
+print(config)
+
+config.model = "gpt-4o"   # FrozenInstanceError: cannot assign to field 'model'
+```
+
+| | Normal `@dataclass` | `@dataclass(frozen=True)` |
+|---|---|---|
+| Data changes over time | Yes (shopping list, task list) | No |
+| Config / settings | No | Yes |
+
 *More examples coming in next session.*
 
