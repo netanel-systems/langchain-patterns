@@ -789,8 +789,6 @@ Both needed. Different jobs.
 
 ---
 
-*Patterns 5–12 coming soon.*
-
 ---
 
 ## Pattern 5 — Decorators + `@tool`
@@ -1450,6 +1448,7 @@ ERROR: took too long — cancelled
 longer than N seconds. Change `delay=5` to `delay=1` and it finishes in time.
 
 Aria pattern:
+
 ```python
 try:
     weather = await asyncio.wait_for(get_weather(), timeout=3)
@@ -1588,7 +1587,7 @@ print("done")   # never runs
 
 ### The shape
 
-```
+```text
 try:
     [code that might fail]
 except SomeError:
@@ -1663,8 +1662,8 @@ Python checks each `except` in order — top to bottom. First match wins.
 ```python
 def read_file(filename: str) -> None:
     try:
-        f = open(filename, "r")
-        content = f.read()
+        with open(filename, "r") as f:
+            content = f.read()
     except FileNotFoundError:
         print(f"Error: '{filename}' not found")
     else:
@@ -1988,7 +1987,7 @@ class Config:
 config = Config(model="gpt-4o-mini", temperature=0.0, max_tokens=1000)
 print(config)
 
-config.model = "gpt-4o"   # FrozenInstanceError: cannot assign to field 'model'
+# config.model = "gpt-4o"   # FrozenInstanceError: cannot assign to field 'model'
 ```
 
 | | Normal `@dataclass` | `@dataclass(frozen=True)` |
@@ -2228,18 +2227,25 @@ POST /cab/book with {'pickup': 'Nacharam', 'destination': 'Airport', 'seats': 2,
 ### Example 4 — `**kwargs` in LangChain tools
 
 ```python
+from typing import Optional
 from langchain.tools import tool
 
 @tool
-def send_reminder(person: str, message: str, **kwargs) -> str:
-    """Send a reminder. Extra options: urgent, language, repeat."""
+def send_reminder(
+    person: str,
+    message: str,
+    urgent: bool = False,
+    language: Optional[str] = None,
+    repeat: Optional[str] = None,
+) -> str:
+    """Send a reminder. Options: urgent (bool), language (str), repeat (interval)."""
     parts = [f"Reminder to {person}: {message}"]
-    if kwargs.get("urgent"):
+    if urgent:
         parts.insert(0, "[URGENT]")
-    if kwargs.get("language"):
-        parts.append(f"(in {kwargs['language']})")
-    if kwargs.get("repeat"):
-        parts.append(f"(repeat every {kwargs['repeat']})")
+    if language:
+        parts.append(f"(in {language})")
+    if repeat:
+        parts.append(f"(repeat every {repeat})")
     return " ".join(parts)
 
 print(send_reminder.invoke({"person": "Mom", "message": "Doctor at 3pm", "urgent": True, "language": "telugu"}))
@@ -2362,13 +2368,13 @@ lines   = [
     else f"{r['person']}: {r['message']}"
     for r in pending
 ]
-people = list({r["person"] for r in pending})
+people = sorted({r["person"] for r in pending})
 
 print("Pending:", len(pending))   # 3
 print("Urgent:", len(urgent))     # 2
 for line in lines:
     print("-", line)
-print("People:", people)          # ['Mom', 'Klement']
+print("People:", people)          # ['Klement', 'Mom']
 ```
 
 ---
@@ -2626,7 +2632,7 @@ builder.add_edge("tools", "agent")
 graph = builder.compile()
 ```
 
-```
+```text
 START → agent_node → should_continue ──── "tools" → tool_node ─┐
                               └─────────── "end"   → END        │
                     ↑_________________________________________|
