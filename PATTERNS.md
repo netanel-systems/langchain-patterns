@@ -13,7 +13,7 @@ Klement's reference guide — code + explanation, built together pattern by patt
 | 3 | TypedDict — agent state | Complete |
 | 4 | Pydantic BaseModel — tool input validation | Complete |
 | 5 | Decorators + `@tool` | Complete |
-| 6 | async/await — parallel execution | In Progress |
+| 6 | async/await — parallel execution | Complete |
 | 7 | try/except — error handling | Remaining |
 | 8 | Dataclasses | Remaining |
 | 9 | `**kwargs` — flexible arguments | Remaining |
@@ -1252,5 +1252,291 @@ Hello, Klement!
 - `result = await greet("Klement")` — to call an async function, you must `await` it
 - `asyncio.run(main())` — the entry point. Starts the async engine and runs `main()`
 
-*More examples coming in next session.*
+---
+
+### Example 2 — sequential vs parallel
+
+**Sequential (slow):**
+
+```python
+import asyncio
+
+async def fetch_weather(city: str) -> str:
+    await asyncio.sleep(2)
+    return f"Weather in {city}: Sunny"
+
+async def fetch_news() -> str:
+    await asyncio.sleep(2)
+    return "Top news: Space house launched"
+
+async def main():
+    weather = await fetch_weather("Hyderabad")   # wait 2s
+    news = await fetch_news()                     # wait 2s more
+    print(weather)
+    print(news)
+
+asyncio.run(main())
+# Total: 4 seconds
+```
+
+**Parallel (fast) — `asyncio.gather`:**
+
+```python
+async def main():
+    weather, news = await asyncio.gather(
+        fetch_weather("Hyderabad"),
+        fetch_news()
+    )
+    print(weather)
+    print(news)
+
+asyncio.run(main())
+# Total: 2 seconds
+```
+
+**Output (both):**
+```
+Weather in Hyderabad: Sunny
+Top news: Space house launched
+```
+
+`asyncio.gather(task1, task2)` = start both at once, wait for both, return both
+results together. The left side unpacks results in the same order as the tasks.
+
+---
+
+### Example 3 — gather with 3 tasks (Aria morning briefing)
+
+```python
+import asyncio
+
+async def get_weather(city: str) -> str:
+    await asyncio.sleep(1)
+    return f"Weather in {city}: Sunny, 28°C"
+
+async def get_news() -> str:
+    await asyncio.sleep(1)
+    return "Top news: Space house launched"
+
+async def get_reminders() -> str:
+    await asyncio.sleep(1)
+    return "Reminder: Mom doctor at 3pm"
+
+async def main():
+    weather, news, reminders = await asyncio.gather(
+        get_weather("Hyderabad"),
+        get_news(),
+        get_reminders()
+    )
+    print("--- Morning Briefing ---")
+    print(weather)
+    print(news)
+    print(reminders)
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+--- Morning Briefing ---
+Weather in Hyderabad: Sunny, 28°C
+Top news: Space house launched
+Reminder: Mom doctor at 3pm
+```
+
+Time: 1 second — not 3. Add more tasks → still takes the time of the slowest
+one, not the sum of all.
+
+---
+
+### Example 4 — what if one task fails?
+
+By default, if one task crashes, everything stops. `return_exceptions=True`
+collects the error as a result instead — the other tasks still finish.
+
+```python
+import asyncio
+
+async def get_weather(city: str) -> str:
+    await asyncio.sleep(1)
+    return f"Weather in {city}: Sunny"
+
+async def get_news() -> str:
+    await asyncio.sleep(1)
+    raise ValueError("News API is down!")
+
+async def get_reminders() -> str:
+    await asyncio.sleep(1)
+    return "Reminder: Mom doctor at 3pm"
+
+async def main():
+    results = await asyncio.gather(
+        get_weather("Hyderabad"),
+        get_news(),
+        get_reminders(),
+        return_exceptions=True
+    )
+    for result in results:
+        if isinstance(result, Exception):
+            print(f"ERROR: {result}")
+        else:
+            print(result)
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+Weather in Hyderabad: Sunny
+ERROR: News API is down!
+Reminder: Mom doctor at 3pm
+```
+
+`isinstance(result, Exception)` — checks if this result is an error or a real
+value. Without `return_exceptions=True`, one failure kills everything.
+
+---
+
+### Example 5 — timeout: cancel if too slow
+
+```python
+import asyncio
+
+async def fetch_data(source: str, delay: float) -> str:
+    await asyncio.sleep(delay)
+    return f"Data from {source}"
+
+async def main():
+    try:
+        result = await asyncio.wait_for(
+            fetch_data("slow API", delay=5),
+            timeout=3
+        )
+        print(result)
+    except asyncio.TimeoutError:
+        print("ERROR: took too long — cancelled")
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+ERROR: took too long — cancelled
+```
+
+`asyncio.wait_for(task, timeout=N)` = run this task, but cancel it if it takes
+longer than N seconds. Change `delay=5` to `delay=1` and it finishes in time.
+
+Aria pattern:
+```python
+try:
+    weather = await asyncio.wait_for(get_weather(), timeout=3)
+except asyncio.TimeoutError:
+    weather = "Weather unavailable right now"
+```
+
+---
+
+### Example 6 — async inside a class
+
+```python
+import asyncio
+
+class Aria:
+    def __init__(self, name: str):
+        self.name = name
+
+    async def get_weather(self, city: str) -> str:
+        await asyncio.sleep(1)
+        return f"Weather in {city}: Sunny, 28°C"
+
+    async def get_reminder(self) -> str:
+        await asyncio.sleep(1)
+        return "Reminder: Mom doctor at 3pm"
+
+    async def morning_briefing(self, city: str) -> None:
+        weather, reminder = await asyncio.gather(
+            self.get_weather(city),
+            self.get_reminder()
+        )
+        print(f"Good morning! I am {self.name}.")
+        print(weather)
+        print(reminder)
+
+
+async def main():
+    aria = Aria("Aria")
+    await aria.morning_briefing("Hyderabad")
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+Good morning! I am Aria.
+Weather in Hyderabad: Sunny, 28°C
+Reminder: Mom doctor at 3pm
+```
+
+Same rules inside a class: `async def`, `await`, gather works with `self.method()`.
+Calling an async method from outside still needs `await`.
+
+---
+
+### Example 7 — async in LangChain (`ainvoke`)
+
+Every LangChain tool has two versions:
+
+| Sync | Async |
+|------|-------|
+| `.invoke()` | `.ainvoke()` |
+| blocks until done | can run in parallel |
+
+```python
+import asyncio
+from langchain.tools import tool
+
+@tool
+def get_weather(city: str) -> str:
+    """Get the weather for a city."""
+    return f"Weather in {city}: Sunny, 28°C"
+
+@tool
+def get_reminder(person: str) -> str:
+    """Get reminders for a person."""
+    return f"Reminder for {person}: Doctor at 3pm"
+
+async def main():
+    weather, reminder = await asyncio.gather(
+        get_weather.ainvoke({"city": "Hyderabad"}),
+        get_reminder.ainvoke({"person": "Mom"})
+    )
+    print(weather)
+    print(reminder)
+
+asyncio.run(main())
+```
+
+**Output:**
+```
+Weather in Hyderabad: Sunny, 28°C
+Reminder for Mom: Doctor at 3pm
+```
+
+The only change from sync: `.invoke()` → `.ainvoke()`. Same tool, same input
+dict. Now it runs inside `asyncio.gather`.
+
+---
+
+### Pattern 6 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic async function + await |
+| 2 | Sequential vs parallel — gather saves time |
+| 3 | Gather with 3 tasks — morning briefing |
+| 4 | Error handling — return_exceptions=True |
+| 5 | Timeout — wait_for |
+| 6 | Async inside a class |
+| 7 | LangChain ainvoke — the real use case |
 
