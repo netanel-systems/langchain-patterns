@@ -50,7 +50,8 @@ dog.greet()
 ```
 
 **Output:**
-```
+
+```text
 Hi, I am Rex and I am a Labrador!
 ```
 
@@ -90,7 +91,8 @@ print(r.perimeter())  # 16
 ```
 
 **Output:**
-```
+
+```text
 15
 16
 ```
@@ -129,7 +131,8 @@ print(f"Nathan:  ${account2.get_balance()}")  # 100
 ```
 
 **Output:**
-```
+
+```text
 Klement: $500
 Nathan:  $100
 ```
@@ -171,7 +174,8 @@ cat.speak()  # Luna says: Meow!
 ```
 
 **Output:**
-```
+
+```text
 Rex says: Woof!
 Luna says: Meow!
 ```
@@ -287,7 +291,8 @@ print(book_cab("Nacharam", "Airport", "Call mom when arriving"))
 ```
 
 **Output:**
-```
+
+```text
 note is: None
 Cab booked: Nacharam → Airport
 note is: Call mom when arriving
@@ -317,7 +322,8 @@ print(display("hello"))
 ```
 
 **Output:**
-```
+
+```text
 value is: 42
 Received: 42
 value is: hello
@@ -352,7 +358,8 @@ print(set_mode("admin"))
 ```
 
 **Output:**
-```
+
+```text
 mode is: read
 Mode set to: read
 mode is: admin
@@ -439,7 +446,8 @@ print(greet(klement))
 ```
 
 **Output:**
-```
+
+```text
 Hello Klement, you are 25 years old.
 ```
 
@@ -472,7 +480,8 @@ print(summarize(order))
 ```
 
 **Output:**
-```
+
+```text
 Pickup: Nacharam
 Destination: Airport
 Seats: 2
@@ -513,7 +522,8 @@ print(result)
 ```
 
 **Output:**
-```
+
+```text
 --- Before ---
 {'message': 'Book a cab for Klement', 'done': False, 'reply': ''}
 Received: Book a cab for Klement
@@ -808,7 +818,8 @@ print(message)
 ```
 
 **Output:**
-```
+
+```text
 --- calling function ---
 --- done ---
 Hello, Klement!
@@ -861,7 +872,8 @@ print(book_cab.args)
 ```
 
 **Output:**
-```
+
+```text
 Cab booked: Nacharam → Airport for 2 seat(s)
 
 name:        book_cab
@@ -955,7 +967,8 @@ print(result)
 ```
 
 **Output:**
-```
+
+```text
 [URGENT] Reminder sent to Mom: Doctor appointment at 3pm via call (Speak Telugu)
 ```
 
@@ -1012,7 +1025,8 @@ print(send_message.invoke({"to": "Mom", "body": "Doctor at 3pm"}))
 ```
 
 **Output:**
-```
+
+```text
 get_weather: Get the current weather for a city.
 book_cab: Book a cab from pickup to destination.
 send_message: Send a text message to a contact.
@@ -1064,7 +1078,8 @@ print(lookup_contact.invoke({"name": "Unknown"}))   # Contact 'Unknown' not foun
 ```
 
 **Output:**
-```
+
+```text
 Mom: +91-8888
 Aria: +91-7777
 Contact 'Unknown' not found.
@@ -1140,7 +1155,8 @@ print(remind_mom.invoke({"message": "Take medicine", "language": "telugu"}))
 ```
 
 **Output:**
-```
+
+```text
 [URGENT] Telugu call to Mom: Doctor at 3pm
 English message to Mom: Lunch is ready
 Telugu call to Mom: Take medicine
@@ -1178,7 +1194,8 @@ print(daily_summary.invoke({"person": "Aria", "tasks_done": 12, "pending": 1}))
 ```
 
 **Output:**
-```
+
+```text
 Daily summary for Klement:
   Done:    7/10 tasks (70%)
   Pending: 3 tasks
@@ -1238,7 +1255,8 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 Hello, Klement!
 ```
 
@@ -1295,7 +1313,8 @@ asyncio.run(main())
 ```
 
 **Output (both):**
-```
+
+```text
 Weather in Hyderabad: Sunny
 Top news: Space house launched
 ```
@@ -1337,7 +1356,8 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 --- Morning Briefing ---
 Weather in Hyderabad: Sunny, 28°C
 Top news: Space house launched
@@ -1386,7 +1406,8 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 Weather in Hyderabad: Sunny
 ERROR: News API is down!
 Reminder: Mom doctor at 3pm
@@ -1420,7 +1441,8 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 ERROR: took too long — cancelled
 ```
 
@@ -1472,7 +1494,8 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 Good morning! I am Aria.
 Weather in Hyderabad: Sunny, 28°C
 Reminder: Mom doctor at 3pm
@@ -1518,13 +1541,20 @@ asyncio.run(main())
 ```
 
 **Output:**
-```
+
+```text
 Weather in Hyderabad: Sunny, 28°C
 Reminder for Mom: Doctor at 3pm
 ```
 
 The only change from sync: `.invoke()` → `.ainvoke()`. Same tool, same input
 dict. Now it runs inside `asyncio.gather`.
+
+**Important:** calling `.ainvoke()` on a synchronous `@tool` does not make it a
+true async coroutine. LangChain runs it in a thread pool via
+`asyncio.run_in_executor`. The parallelism is thread-based, not coroutine-based.
+`.ainvoke()` still gives you an async interface and avoids blocking the event
+loop — it just uses threads under the hood for sync functions.
 
 ---
 
@@ -1586,7 +1616,8 @@ print(divide(5, 0))    # Error: cannot divide by zero
 ```
 
 **Output:**
-```
+
+```text
 10.0 ÷ 2.0 = 5.0
 Error: cannot divide by zero
 ```
@@ -1616,7 +1647,8 @@ print(parse_and_divide("ten", "2"))    # Error: both inputs must be numbers
 ```
 
 **Output:**
-```
+
+```text
 10 ÷ 2 = 5.0
 Error: cannot divide by zero
 Error: both inputs must be numbers
@@ -1702,7 +1734,8 @@ for city in ["Hyderabad", "", "unknown"]:
 ```
 
 **Output:**
-```
+
+```text
 Weather in Hyderabad: Sunny, 28°C
 Bad input: City name cannot be empty
 API issue: Weather API did not respond
@@ -1744,7 +1777,8 @@ print(call_contact.invoke({"name": "Dad", "language": "english"}))
 ```
 
 **Output:**
-```
+
+```text
 Calling Mom (+91-8888) in telugu
 Error: Contact 'Dad' not found
 ```
@@ -1801,7 +1835,8 @@ print(p)      # Point(x=3, y=7)
 ```
 
 **Output:**
-```
+
+```text
 3
 7
 Point(x=3, y=7)
@@ -1842,7 +1877,8 @@ print(c2)
 ```
 
 **Output:**
-```
+
+```text
 Contact(name='Mom', phone='+91-8888', language='english', note=None)
 Contact(name='Klement', phone='+91-9999', language='telugu', note='Call after 6pm')
 ```
@@ -1877,7 +1913,8 @@ print(t2)
 ```
 
 **Output:**
-```
+
+```text
 TaskList(owner='Klement', tasks=['Buy groceries', 'Call doctor'])
 TaskList(owner='Mom', tasks=['Watch movie'])
 ```
@@ -1924,7 +1961,8 @@ print(cart)
 ```
 
 **Output:**
-```
+
+```text
 Klement has 2 items: ['Rice', 'Eggs']
 ShoppingList(owner='Klement', items=['Rice', 'Eggs'])
 ```
@@ -1990,7 +2028,8 @@ print(b1)
 ```
 
 **Output:**
-```
+
+```text
 300.0
 CabBooking(pickup='Nacharam', destination='Airport', seats=2, price_per_seat=150.0, total_price=300.0)
 ```
@@ -2055,7 +2094,8 @@ print(briefing.summary())
 ```
 
 **Output:**
-```
+
+```text
 Weather: Hyderabad: Sunny, 28°C
 
 Reminders:
@@ -2146,7 +2186,8 @@ print(send_message("Mom", "Doctor at 3pm", urgent=True, language="telugu"))
 ```
 
 **Output:**
-```
+
+```text
 To: Mom
 Body: Doctor at 3pm
 
@@ -2171,7 +2212,8 @@ print(book_cab("Nacharam", "Airport", seats=2, language="telugu"))
 ```
 
 **Output:**
-```
+
+```text
 POST /cab/book with {'pickup': 'Nacharam', 'destination': 'Airport'}
 POST /cab/book with {'pickup': 'Nacharam', 'destination': 'Airport', 'seats': 2, 'language': 'telugu'}
 ```
