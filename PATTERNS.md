@@ -15,7 +15,7 @@ Klement's reference guide — code + explanation, built together pattern by patt
 | 5 | Decorators + `@tool` | Complete |
 | 6 | async/await — parallel execution | Complete |
 | 7 | try/except — error handling | Complete |
-| 8 | Dataclasses | In Progress |
+| 8 | Dataclasses | Complete |
 | 9 | `**kwargs` — flexible arguments | Remaining |
 | 10 | List comprehensions | Remaining |
 | 11 | Annotated types | Remaining |
@@ -1958,5 +1958,126 @@ config.model = "gpt-4o"   # FrozenInstanceError: cannot assign to field 'model'
 | Data changes over time | Yes (shopping list, task list) | No |
 | Config / settings | No | Yes |
 
-*More examples coming in next session.*
+---
+
+### Example 6 — `__post_init__` (run code after creation)
+
+`__post_init__` runs automatically after `__init__`. Use it to compute fields
+or validate data right after the object is created.
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class CabBooking:
+    pickup: str
+    destination: str
+    seats: int
+    price_per_seat: float
+
+    total_price: float = 0.0
+
+    def __post_init__(self):
+        if self.seats < 1:
+            raise ValueError("seats must be at least 1")
+        self.total_price = self.seats * self.price_per_seat
+
+b1 = CabBooking(pickup="Nacharam", destination="Airport", seats=2, price_per_seat=150.0)
+print(b1.total_price)   # 300.0
+print(b1)
+
+# b2 = CabBooking(..., seats=0, ...) → ValueError: seats must be at least 1
+```
+
+**Output:**
+```
+300.0
+CabBooking(pickup='Nacharam', destination='Airport', seats=2, price_per_seat=150.0, total_price=300.0)
+```
+
+| Use | Example |
+|-----|---------|
+| Compute a field | `self.total_price = seats × price_per_seat` |
+| Validate | `if seats < 1: raise ValueError(...)` |
+
+This is the dataclass equivalent of Pydantic's `@model_validator`.
+
+---
+
+### Example 7 — real Aria use case (all combined)
+
+```python
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class Reminder:
+    person: str
+    message: str
+    urgent: bool = False
+
+    def label(self) -> str:
+        prefix = "[URGENT] " if self.urgent else ""
+        return f"{prefix}{self.person}: {self.message}"
+
+
+@dataclass
+class DailyBriefing:
+    weather: str
+    reminders: List[Reminder] = field(default_factory=list)
+    news: List[str] = field(default_factory=list)
+
+    def add_reminder(self, person: str, message: str, urgent: bool = False) -> None:
+        self.reminders.append(Reminder(person, message, urgent))
+
+    def add_news(self, headline: str) -> None:
+        self.news.append(headline)
+
+    def summary(self) -> str:
+        lines = [f"Weather: {self.weather}", ""]
+        lines.append("Reminders:")
+        for r in self.reminders:
+            lines.append(f"  - {r.label()}")
+        lines.append("")
+        lines.append("News:")
+        for n in self.news:
+            lines.append(f"  - {n}")
+        return "\n".join(lines)
+
+
+briefing = DailyBriefing(weather="Hyderabad: Sunny, 28°C")
+briefing.add_reminder("Mom", "Doctor at 3pm", urgent=True)
+briefing.add_reminder("Klement", "Team call at 5pm")
+briefing.add_news("Space house launched")
+briefing.add_news("Markets up 2%")
+
+print(briefing.summary())
+```
+
+**Output:**
+```
+Weather: Hyderabad: Sunny, 28°C
+
+Reminders:
+  - [URGENT] Mom: Doctor at 3pm
+  - Klement: Team call at 5pm
+
+News:
+  - Space house launched
+  - Markets up 2%
+```
+
+---
+
+### Pattern 8 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic `@dataclass` — auto `__init__` + `__repr__` |
+| 2 | Default values — required first, optional after |
+| 3 | `field(default_factory=list)` — each object gets its own list |
+| 4 | Methods inside a dataclass |
+| 5 | `frozen=True` — immutable, for config |
+| 6 | `__post_init__` — compute fields + validate after creation |
+| 7 | Real Aria use case — nested dataclasses, all combined |
 
