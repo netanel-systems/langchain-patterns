@@ -16,10 +16,10 @@ Klement's reference guide — code + explanation, built together pattern by patt
 | 6 | async/await — parallel execution | Complete |
 | 7 | try/except — error handling | Complete |
 | 8 | Dataclasses | Complete |
-| 9 | `**kwargs` — flexible arguments | Remaining |
-| 10 | List comprehensions | Remaining |
-| 11 | Annotated types | Remaining |
-| 12 | Putting it all together — full LangChain agent | Remaining |
+| 9 | `**kwargs` — flexible arguments | Complete |
+| 10 | List comprehensions | Complete |
+| 11 | Annotated types | Complete |
+| 12 | Putting it all together — full LangChain agent | Complete |
 
 ---
 
@@ -2080,4 +2080,561 @@ News:
 | 5 | `frozen=True` — immutable, for config |
 | 6 | `__post_init__` — compute fields + validate after creation |
 | 7 | Real Aria use case — nested dataclasses, all combined |
+
+---
+
+## Pattern 9 — `**kwargs`
+
+### Two building blocks
+
+```python
+# *args — collects extra positional arguments into a list
+def total(*args):
+    return sum(args)
+
+print(total(1, 2, 3))   # 6
+
+# **kwargs — collects extra keyword arguments into a dict
+def show(**kwargs):
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+
+show(name="Klement", city="Hyderabad", age=25)
+# name: Klement
+# city: Hyderabad
+# age: 25
+```
+
+`**kwargs` — the `**` unpacks key=value pairs into a dictionary named `kwargs`.
+
+### The order rule
+
+```python
+def func(required, default="value", *args, **kwargs):
+    pass
+# required → optional → *args → **kwargs (always last)
+```
+
+---
+
+### Example 1 — basic `**kwargs`
+
+```python
+def create_profile(**kwargs) -> dict:
+    return kwargs
+
+p = create_profile(name="Klement", role="founder", city="Hyderabad")
+print(p)          # {'name': 'Klement', 'role': 'founder', 'city': 'Hyderabad'}
+print(p["name"])  # Klement
+```
+
+Inside the function, `kwargs` is just a regular dictionary.
+
+---
+
+### Example 2 — mixing required + `**kwargs`
+
+```python
+def send_message(to: str, body: str, **kwargs) -> str:
+    result = f"To: {to}\nBody: {body}"
+    if kwargs:
+        result += f"\nExtras: {kwargs}"
+    return result
+
+print(send_message("Mom", "Doctor at 3pm"))
+print(send_message("Mom", "Doctor at 3pm", urgent=True, language="telugu"))
+```
+
+**Output:**
+```
+To: Mom
+Body: Doctor at 3pm
+
+To: Mom
+Body: Doctor at 3pm
+Extras: {'urgent': True, 'language': 'telugu'}
+```
+
+---
+
+### Example 3 — passing `**kwargs` to another function
+
+```python
+def call_api(endpoint: str, **kwargs) -> str:
+    return f"POST {endpoint} with {kwargs}"
+
+def book_cab(pickup: str, destination: str, **kwargs) -> str:
+    return call_api("/cab/book", pickup=pickup, destination=destination, **kwargs)
+
+print(book_cab("Nacharam", "Airport"))
+print(book_cab("Nacharam", "Airport", seats=2, language="telugu"))
+```
+
+**Output:**
+```
+POST /cab/book with {'pickup': 'Nacharam', 'destination': 'Airport'}
+POST /cab/book with {'pickup': 'Nacharam', 'destination': 'Airport', 'seats': 2, 'language': 'telugu'}
+```
+
+| Position | What it does |
+|----------|-------------|
+| `def func(**kwargs)` | collects incoming keyword args into a dict |
+| `func(**my_dict)` | unpacks a dict into keyword args |
+
+---
+
+### Example 4 — `**kwargs` in LangChain tools
+
+```python
+from langchain.tools import tool
+
+@tool
+def send_reminder(person: str, message: str, **kwargs) -> str:
+    """Send a reminder. Extra options: urgent, language, repeat."""
+    parts = [f"Reminder to {person}: {message}"]
+    if kwargs.get("urgent"):
+        parts.insert(0, "[URGENT]")
+    if kwargs.get("language"):
+        parts.append(f"(in {kwargs['language']})")
+    if kwargs.get("repeat"):
+        parts.append(f"(repeat every {kwargs['repeat']})")
+    return " ".join(parts)
+
+print(send_reminder.invoke({"person": "Mom", "message": "Doctor at 3pm", "urgent": True, "language": "telugu"}))
+# [URGENT] Reminder to Mom: Doctor at 3pm (in telugu)
+```
+
+`kwargs.get("key")` — safe lookup. Returns `None` if missing — no crash.
+
+---
+
+### Pattern 9 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic `**kwargs` — collected into a dict |
+| 2 | Required + `**kwargs` — argument order rule |
+| 3 | Forwarding `**kwargs` to another function |
+| 4 | `**kwargs` in a LangChain tool |
+
+---
+
+## Pattern 10 — List Comprehensions
+
+### The shape
+
+```python
+[expression for item in iterable]              # transform
+[expression for item in iterable if condition] # transform + filter
+{key: value for item in iterable}              # dict comprehension
+```
+
+Read left to right: "give me `expression`, for each `item`, only if `condition`."
+
+---
+
+### Example 1 — basic transformation
+
+```python
+numbers = [1, 2, 3, 4, 5]
+
+doubled    = [n * 2 for n in numbers]
+squared    = [n ** 2 for n in numbers]
+as_strings = [str(n) for n in numbers]
+
+print(doubled)     # [2, 4, 6, 8, 10]
+print(squared)     # [1, 4, 9, 16, 25]
+print(as_strings)  # ['1', '2', '3', '4', '5']
+```
+
+---
+
+### Example 2 — filtering with `if`
+
+```python
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+evens         = [n for n in numbers if n % 2 == 0]
+big           = [n for n in numbers if n > 5]
+doubled_evens = [n * 2 for n in numbers if n % 2 == 0]
+
+print(evens)          # [2, 4, 6, 8, 10]
+print(big)            # [6, 7, 8, 9, 10]
+print(doubled_evens)  # [4, 8, 12, 16, 20]
+```
+
+---
+
+### Example 3 — list comprehensions with strings
+
+```python
+names    = ["klement", "mom", "aria", "nathan"]
+cities   = ["  Hyderabad  ", "  New York  "]
+messages = ["Doctor at 3pm", "", "Call back", "", "Lunch ready"]
+
+capitalized = [name.capitalize() for name in names]
+cleaned     = [city.strip() for city in cities]
+valid       = [m for m in messages if m]   # if m skips empty strings
+
+print(capitalized)  # ['Klement', 'Mom', 'Aria', 'Nathan']
+print(cleaned)      # ['Hyderabad', 'New York']
+print(valid)        # ['Doctor at 3pm', 'Call back', 'Lunch ready']
+```
+
+---
+
+### Example 4 — list comprehensions with dictionaries
+
+```python
+contacts = [
+    {"name": "Mom",     "phone": "+91-8888", "active": True},
+    {"name": "Klement", "phone": "+91-9999", "active": True},
+    {"name": "Old",     "phone": "+91-0000", "active": False},
+]
+
+names        = [c["name"] for c in contacts]
+active_names = [c["name"] for c in contacts if c["active"]]
+phone_book   = {c["name"]: c["phone"] for c in contacts if c["active"]}
+
+print(names)        # ['Mom', 'Klement', 'Old']
+print(active_names) # ['Mom', 'Klement']
+print(phone_book)   # {'Mom': '+91-8888', 'Klement': '+91-9999'}
+```
+
+---
+
+### Example 5 — real Aria use case (all combined)
+
+```python
+reminders = [
+    {"person": "Mom",     "message": "Doctor at 3pm", "urgent": True,  "done": False},
+    {"person": "Klement", "message": "Team call 5pm", "urgent": False, "done": True},
+    {"person": "Mom",     "message": "Take medicine",  "urgent": True,  "done": False},
+    {"person": "Klement", "message": "Review PR",      "urgent": False, "done": False},
+]
+
+pending = [r for r in reminders if not r["done"]]
+urgent  = [r for r in reminders if r["urgent"] and not r["done"]]
+lines   = [
+    f"[URGENT] {r['person']}: {r['message']}" if r["urgent"]
+    else f"{r['person']}: {r['message']}"
+    for r in pending
+]
+people = list({r["person"] for r in pending})
+
+print("Pending:", len(pending))   # 3
+print("Urgent:", len(urgent))     # 2
+for line in lines:
+    print("-", line)
+print("People:", people)          # ['Mom', 'Klement']
+```
+
+---
+
+### Pattern 10 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | Basic transformation |
+| 2 | Filtering with `if` |
+| 3 | Strings — capitalize, strip, filter empty |
+| 4 | Dicts — extract fields, dict comprehension |
+| 5 | Real Aria use case — all combined |
+
+---
+
+## Pattern 11 — Annotated Types
+
+`Annotated` attaches extra rules to a type hint. Pydantic and LangGraph read
+and enforce those rules automatically.
+
+---
+
+### Example 1 — Annotated with Pydantic Field
+
+```python
+from typing import Annotated
+from pydantic import BaseModel, Field
+
+class BookingInput(BaseModel):
+    pickup: str
+    seats:    Annotated[int,   Field(ge=1, le=6)]
+    discount: Annotated[float, Field(ge=0.0, le=100.0)]
+
+b = BookingInput(pickup="Nacharam", seats=2, discount=10.0)
+print(b.seats)     # 2
+print(b.discount)  # 10.0
+# seats=0 → ValidationError: Input should be >= 1
+```
+
+---
+
+### Example 2 — Annotated in LangGraph state (reducer)
+
+```python
+from typing import Annotated, TypedDict
+from operator import add
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add]   # append, never replace
+    step: int
+    done: bool
+```
+
+`Annotated[list, add]` — nodes append to the list, never overwrite it.
+Without this, every node replaces the conversation history.
+Every real LangGraph agent has `messages: Annotated[list, add]`.
+
+---
+
+### Example 3 — Annotated with custom validator
+
+```python
+from typing import Annotated
+from pydantic import BaseModel, AfterValidator
+
+def valid_language(v: str) -> str:
+    if v not in ("english", "telugu"):
+        raise ValueError(f"must be 'english' or 'telugu'")
+    return v
+
+Language = Annotated[str, AfterValidator(valid_language)]
+
+class ReminderInput(BaseModel):
+    person: str
+    message: str
+    language: Language = "english"
+
+r1 = ReminderInput(person="Mom", message="Doctor at 3pm", language="telugu")
+print(r1.language)  # telugu
+# language="hindi" → ValueError: must be 'english' or 'telugu'
+```
+
+Define once, reuse everywhere — `language: Language` in any model.
+
+---
+
+### Example 4 — real Aria use case (all combined)
+
+```python
+from typing import Annotated, TypedDict
+from pydantic import BaseModel, Field, AfterValidator
+from operator import add
+
+def valid_language(v: str) -> str:
+    if v not in ("english", "telugu"):
+        raise ValueError("must be 'english' or 'telugu'")
+    return v
+
+Language = Annotated[str, AfterValidator(valid_language)]
+Seats    = Annotated[int, Field(ge=1, le=6)]
+Price    = Annotated[float, Field(ge=0.0)]
+
+class CabBookingInput(BaseModel):
+    pickup: str
+    destination: str
+    seats: Seats
+    language: Language = "english"
+    price_per_seat: Price = 150.0
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add]
+    bookings: Annotated[list, add]
+    done: bool
+
+booking = CabBookingInput(pickup="Nacharam", destination="Airport", seats=2, language="telugu")
+print(booking)
+print(f"Total: ₹{booking.seats * booking.price_per_seat}")
+# Total: ₹300.0
+```
+
+---
+
+### Pattern 11 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | `Annotated` + Pydantic `Field` — constraints inside the type |
+| 2 | `Annotated[list, add]` — LangGraph state reducer |
+| 3 | `Annotated` + `AfterValidator` — reusable custom type |
+| 4 | Real Aria use case — all combined |
+
+---
+
+## Pattern 12 — Full LangChain Agent
+
+Every pattern combined. Four parts: state, tools, nodes, graph.
+
+---
+
+### Example 1 — the state
+
+```python
+from typing import Annotated, TypedDict
+from operator import add
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add]   # conversation history — appended
+    actions:  Annotated[list, add]   # tools called — appended
+    input:    str                    # user's current message
+    output:   str                    # agent's final reply
+    done:     bool                   # is the agent finished?
+```
+
+| Field | Purpose |
+|-------|---------|
+| `messages` | Full conversation — grows with every turn |
+| `actions` | Log of every tool called |
+| `input` | What the user just said |
+| `output` | What Aria replies |
+| `done` | Tells the graph when to stop |
+
+---
+
+### Example 2 — the tools
+
+```python
+from langchain.tools import tool
+from pydantic import BaseModel
+
+class WeatherInput(BaseModel):
+    city: str
+
+@tool("get_weather", args_schema=WeatherInput)
+def get_weather(city: str) -> str:
+    """Get the current weather for a city."""
+    try:
+        return f"Weather in {city}: Sunny, 28°C"
+    except Exception as e:
+        return f"Error: {e}"
+
+class ReminderInput(BaseModel):
+    person: str
+    message: str
+    urgent: bool = False
+
+@tool("send_reminder", args_schema=ReminderInput)
+def send_reminder(person: str, message: str, urgent: bool) -> str:
+    """Send a reminder to a person."""
+    try:
+        prefix = "[URGENT] " if urgent else ""
+        return f"{prefix}Reminder sent to {person}: {message}"
+    except Exception as e:
+        return f"Error: {e}"
+
+tools = [get_weather, send_reminder]
+```
+
+Every tool: Pydantic input + `@tool` + `try/except`. Same structure every time.
+
+---
+
+### Example 3 — the nodes
+
+```python
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.prebuilt import ToolNode
+
+model = ChatAnthropic(model="claude-sonnet-4-6").bind_tools(tools)
+
+def agent_node(state: AgentState) -> dict:
+    messages = [
+        SystemMessage(content="You are Aria, Klement's personal assistant."),
+        HumanMessage(content=state["input"])
+    ] + state["messages"]
+    response = model.invoke(messages)
+    return {"messages": [response], "output": response.content}
+
+tool_node = ToolNode(tools)
+
+def should_continue(state: AgentState) -> str:
+    last = state["messages"][-1]
+    if hasattr(last, "tool_calls") and last.tool_calls:
+        return "tools"
+    return "end"
+```
+
+| Node | Job |
+|------|-----|
+| `agent_node` | Ask the LLM: what should I do? |
+| `tool_node` | Execute the tool the LLM chose |
+| `should_continue` | Decide: call a tool, or stop? |
+
+---
+
+### Example 4 — the graph
+
+```python
+from langgraph.graph import StateGraph, END
+
+builder = StateGraph(AgentState)
+
+builder.add_node("agent", agent_node)
+builder.add_node("tools", tool_node)
+builder.set_entry_point("agent")
+
+builder.add_conditional_edges(
+    "agent",
+    should_continue,
+    {"tools": "tools", "end": END}
+)
+builder.add_edge("tools", "agent")
+
+graph = builder.compile()
+```
+
+```
+START → agent_node → should_continue ──── "tools" → tool_node ─┐
+                              └─────────── "end"   → END        │
+                    ↑_________________________________________|
+```
+
+---
+
+### Example 5 — running it
+
+```python
+result = graph.invoke({
+    "input": "What is the weather in Hyderabad? Also remind Mom about her doctor at 3pm.",
+    "messages": [],
+    "actions": [],
+    "output": "",
+    "done": False
+})
+
+print(result["output"])
+# Aria's full reply with weather + reminder confirmation
+```
+
+---
+
+### Pattern 12 — All examples summary
+
+| Example | What it shows |
+|---------|--------------|
+| 1 | State — TypedDict + Annotated reducers |
+| 2 | Tools — Pydantic + @tool + try/except |
+| 3 | Nodes — agent, tool executor, router |
+| 4 | Graph — StateGraph, edges, loop |
+| 5 | Running it — invoke + read results |
+
+---
+
+## All 12 Patterns — Complete
+
+| # | Pattern | Status |
+|---|---------|--------|
+| 1 | Classes + OOP | ✓ |
+| 2 | Type Hints | ✓ |
+| 3 | TypedDict | ✓ |
+| 4 | Pydantic BaseModel | ✓ |
+| 5 | Decorators + `@tool` | ✓ |
+| 6 | async/await | ✓ |
+| 7 | try/except | ✓ |
+| 8 | Dataclasses | ✓ |
+| 9 | `**kwargs` | ✓ |
+| 10 | List comprehensions | ✓ |
+| 11 | Annotated types | ✓ |
+| 12 | Full LangChain agent | ✓ |
 
